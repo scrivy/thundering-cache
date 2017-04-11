@@ -49,6 +49,11 @@ func New(fetch func(string) (interface{}, error), preWarmInit *func() (map[strin
 func (m *Cache) Get(key string) (value interface{}, err error) {
 	var ok bool
 	m.itemsLock.RLock()
+	if m.items == nil {
+		err = ErrNotInitialized
+		m.itemsLock.RUnlock()
+		return
+	}
 	value, ok = m.items[key]
 	m.itemsLock.RUnlock()
 
@@ -108,14 +113,11 @@ func (m *Cache) GetAll() map[string]interface{} {
 	return items
 }
 
-func (m *Cache) Clear() error {
-	if m.items == nil {
-		return ErrNotInitialized
-	}
+func (m *Cache) Clear() {
 	m.itemsLock.Lock()
 	m.items = make(map[string]interface{})
 	m.itemsLock.Unlock()
-	return nil
+	return
 }
 
 // TODO needs to be rewritten to accomidate for updating an element when a get calls is already fetching it

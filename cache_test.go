@@ -10,11 +10,8 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	var err error
-	var cache *Cache
-
 	// create a simple cache without prewarming
-	cache, err = New(getMd5Value, nil)
+	cache, err := New(getMd5Value, nil)
 	if err != nil {
 		t.Fatalf("error: %v, should not have returned an error", err)
 	}
@@ -52,27 +49,34 @@ func TestNew(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-
-}
-
-func TestClear(t *testing.T) {
-	var err error
-	var cache *Cache
-
-	// test clearing a non initiated cache
-	cache = &Cache{}
-	err = cache.Clear()
-	if err != ErrNotInitialized {
-		t.Fatalf("error: %v, want ErrNotInitialized", err)
-	}
-
-	// test clearing an initialized cache
-	cache, _ = New(getMd5Value, &preWarm)
-	err = cache.Clear()
+	cache, _ := New(getMd5Value, nil)
+	valueInterface, err := cache.Get("2")
 	if err != nil {
 		t.Fatalf("error: %v, want nil", err)
 	}
+
+	value, ok := valueInterface.(string)
+	if !ok {
+		t.Fatal("type assertion failed")
+	}
+	twoMd5 := "c81e728d9d4c2f636f067f89cc14862c"
+	if value != twoMd5 {
+		t.Fatalf("value: %s, want %s", value, twoMd5)
+	}
+}
+
+func TestClear(t *testing.T) {
+	// test clearing an initialized cache
+	cache, _ := New(getMd5Value, &preWarm)
 	eq := reflect.DeepEqual(
+		cache.GetAll(),
+		preWarmMap,
+	)
+	if !eq {
+		t.Fatalf("values: %v, want %v", cache.GetAll(), preWarmMap)
+	}
+	cache.Clear()
+	eq = reflect.DeepEqual(
 		cache.GetAll(),
 		map[string]interface{}{})
 	if !eq {
@@ -81,21 +85,12 @@ func TestClear(t *testing.T) {
 }
 
 func TestGetAll(t *testing.T) {
-	var err error
-	var cache *Cache
-
 	// create a simple md5 cache
-	cache, err = New(getMd5Value, nil)
-	if err != nil {
-		t.Fatalf("error: %v, should not have returned an error", err)
-	}
+	cache, _ := New(getMd5Value, nil)
 
 	// make sure it returns an empty map
 	if cache.GetAll() == nil {
 		t.Fatal("should have returned an empty map")
-	}
-	if len(cache.GetAll()) != 0 {
-		t.Fatalf("length: %d, want 0")
 	}
 
 	// fetch 2 values and get the map
@@ -112,10 +107,7 @@ func TestGetAll(t *testing.T) {
 	}
 
 	// test a prewarmed cache
-	cache, err = New(getMd5Value, &preWarm)
-	if err != nil {
-		t.Fatalf("error: %v, should not have returned an error", err)
-	}
+	cache, _ = New(getMd5Value, &preWarm)
 	eq = reflect.DeepEqual(
 		cache.GetAll(),
 		preWarmMap,
