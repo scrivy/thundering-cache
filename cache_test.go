@@ -18,13 +18,20 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v, should not have returned an error", err)
 	}
+	eq := reflect.DeepEqual(
+		cache.GetAll(),
+		map[string]interface{}{},
+	)
+	if !eq {
+		t.Fatalf("values: %v, want an empty map", cache.GetAll())
+	}
 
 	// test creating a prewarmed cache
 	cache, err = New(getMd5Value, &preWarm)
 	if err != nil {
 		t.Fatalf("error: %v, should not have returned an error", err)
 	}
-	eq := reflect.DeepEqual(
+	eq = reflect.DeepEqual(
 		cache.GetAll(),
 		preWarmMap,
 	)
@@ -44,6 +51,10 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+
+}
+
 func TestClear(t *testing.T) {
 	var err error
 	var cache *Cache
@@ -52,20 +63,20 @@ func TestClear(t *testing.T) {
 	cache = &Cache{}
 	err = cache.Clear()
 	if err != ErrNotInitialized {
-		t.Error("should have returned ErrNotInitialized")
+		t.Fatalf("error: %v, want ErrNotInitialized", err)
 	}
 
 	// test clearing an initialized cache
-	cache, err = New(getMd5Value, &preWarm)
+	cache, _ = New(getMd5Value, &preWarm)
+	err = cache.Clear()
 	if err != nil {
-		t.Fatalf("error: %v, should not have returned an error", err)
+		t.Fatalf("error: %v, want nil", err)
 	}
-	cache.Clear()
 	eq := reflect.DeepEqual(
 		cache.GetAll(),
 		map[string]interface{}{})
 	if !eq {
-		t.Fatal("maps should be equal")
+		t.Fatalf("values: %v, expected empty map", cache.GetAll())
 	}
 }
 
@@ -98,6 +109,25 @@ func TestGetAll(t *testing.T) {
 		})
 	if !eq {
 		t.Fatal("maps should be equal")
+	}
+
+	// test a prewarmed cache
+	cache, err = New(getMd5Value, &preWarm)
+	if err != nil {
+		t.Fatalf("error: %v, should not have returned an error", err)
+	}
+	eq = reflect.DeepEqual(
+		cache.GetAll(),
+		preWarmMap,
+	)
+	if !eq {
+		t.Fatalf("values: %v, want %v", cache.GetAll(), preWarmMap)
+	}
+
+	// test getting a non initiated cache
+	cache = &Cache{}
+	if cache.GetAll() != nil {
+		t.Fatalf("values: %v, wanted nil")
 	}
 }
 

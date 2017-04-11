@@ -46,17 +46,8 @@ func New(fetch func(string) (interface{}, error), preWarmInit *func() (map[strin
 	return
 }
 
-func (m *Cache) Clear() error {
-	if m.items == nil {
-		return ErrNotInitialized
-	}
-	m.itemsLock.Lock()
-	m.items = make(map[string]interface{})
-	m.itemsLock.Unlock()
-	return nil
-}
-
-func (m *Cache) Get(key string) (value interface{}, ok bool) {
+func (m *Cache) Get(key string) (value interface{}, err error) {
+	var ok bool
 	m.itemsLock.RLock()
 	value, ok = m.items[key]
 	m.itemsLock.RUnlock()
@@ -77,14 +68,12 @@ func (m *Cache) Get(key string) (value interface{}, ok bool) {
 			}
 			wg.Add(1)
 			m.isBeingFetchedLock.Unlock()
+			defer wg.Done()
 
 			// fetch value
-			var err error
 			value, err = m.fetch(key)
 			if err != nil {
-				value = err
-			} else {
-				ok = true
+				return
 			}
 
 			m.itemsLock.Lock()
@@ -94,8 +83,6 @@ func (m *Cache) Get(key string) (value interface{}, ok bool) {
 			m.isBeingFetchedLock.Lock()
 			m.isBeingFetchedMap[key] = false
 			m.isBeingFetchedLock.Unlock()
-
-			wg.Done()
 		} else { // prevent thundering herd
 			m.isBeingFetchedWG[key].Wait()
 			m.itemsLock.RLock()
@@ -111,11 +98,24 @@ func (m *Cache) Get(key string) (value interface{}, ok bool) {
 func (m *Cache) GetAll() map[string]interface{} {
 	items := map[string]interface{}{}
 	m.itemsLock.RLock()
+	defer m.itemsLock.RUnlock()
+	if m.items == nil {
+		return nil
+	}
 	for k, v := range m.items {
 		items[k] = v
 	}
-	m.itemsLock.RUnlock()
 	return items
+}
+
+func (m *Cache) Clear() error {
+	if m.items == nil {
+		return ErrNotInitialized
+	}
+	m.itemsLock.Lock()
+	m.items = make(map[string]interface{})
+	m.itemsLock.Unlock()
+	return nil
 }
 
 // TODO needs to be rewritten to accomidate for updating an element when a get calls is already fetching it
