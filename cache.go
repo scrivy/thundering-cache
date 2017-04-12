@@ -55,8 +55,8 @@ func (m *Cache) Get(key string) (value interface{}, err error) {
 	var ok bool
 	m.itemsLock.RLock()
 	if m.items == nil {
-		err = ErrNotInitialized
 		m.itemsLock.RUnlock()
+		err = ErrNotInitialized
 		return
 	}
 	value, ok = m.items[key]

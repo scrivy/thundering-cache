@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"testing"
 )
 
@@ -57,7 +56,6 @@ func TestGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v, want nil", err)
 	}
-
 	value, ok := valueInterface.(string)
 	if !ok {
 		t.Fatal("type assertion failed")
@@ -69,9 +67,22 @@ func TestGet(t *testing.T) {
 
 	// create a prewarmed cache and start slamming it, run wit -race
 	cache, _ = New(getMd5Value, &preWarm)
-	var counter uint32
 	wg := &sync.WaitGroup{}
-	slam1To10ABillionTimes(t, cache, &counter, wg)
+	slam1To10ALot(cache, wg)
+	for k, vi := range preWarmMap {
+		valueInterface, err := cache.Get(k)
+		if err != nil {
+			t.Fatalf("error: %v, want nil", err)
+		}
+		value, ok := valueInterface.(string)
+		if !ok {
+			t.Fatal("type assertion failed")
+		}
+		v := vi.(string)
+		if value != v {
+			t.Fatalf("value: %s, want %s", value, v)
+		}
+	}
 	wg.Wait()
 }
 
@@ -168,17 +179,14 @@ var preWarmMap = map[string]interface{}{
 	"2":  "c81e728d9d4c2f636f067f89cc14862c",
 }
 
-func slam1To10ABillionTimes(t *testing.T, cache *Cache, counter *uint32, wg *sync.WaitGroup) {
-	for i := 0; i < 1000; i++ {
+func slam1To10ALot(cache *Cache, wg *sync.WaitGroup) {
+	for i := 0; i < 8000; i++ {
 		wg.Add(1)
-		go func(cache *Cache, counter *uint32, wg *sync.WaitGroup) {
-			var count uint32
-			for atomic.LoadUint32(counter) < 1000000000 {
+		go func(cache *Cache, wg *sync.WaitGroup) {
+			for i := 0; i < 10; i++ {
 				cache.Get(strconv.Itoa(rand.Intn(9) + 1))
-				count = atomic.AddUint32(counter, 1)
-				t.Logf("%d\n", count)
 			}
 			wg.Done()
-		}(cache, counter, wg)
+		}(cache, wg)
 	}
 }
