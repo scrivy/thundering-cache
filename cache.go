@@ -46,6 +46,11 @@ func New(fetch func(string) (interface{}, error), preWarmInit *func() (map[strin
 	return
 }
 
+/*  transparently fetches a result if it's a cache miss, while
+    also blocking other gets to the same key and insuring that
+    only 1 fetch per key happens at a time to prevent a cache
+    stampede
+*/
 func (m *Cache) Get(key string) (value interface{}, err error) {
 	var ok bool
 	m.itemsLock.RLock()
@@ -100,6 +105,7 @@ func (m *Cache) Get(key string) (value interface{}, err error) {
 }
 
 // useful when comparing caches that should be identical amongst servers
+// TODO rename the function so it doesn't imply that fetches are involved
 func (m *Cache) GetAll() map[string]interface{} {
 	items := map[string]interface{}{}
 	m.itemsLock.RLock()

@@ -4,8 +4,11 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
+	"math/rand"
 	"reflect"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -63,6 +66,13 @@ func TestGet(t *testing.T) {
 	if value != twoMd5 {
 		t.Fatalf("value: %s, want %s", value, twoMd5)
 	}
+
+	// create a prewarmed cache and start slamming it, run wit -race
+	cache, _ = New(getMd5Value, &preWarm)
+	var counter uint32
+	wg := &sync.WaitGroup{}
+	slam1To10ABillionTimes(t, cache, &counter, wg)
+	wg.Wait()
 }
 
 func TestClear(t *testing.T) {
@@ -156,4 +166,19 @@ var preWarmMap = map[string]interface{}{
 	"7":  "8f14e45fceea167a5a36dedd4bea2543",
 	"9":  "45c48cce2e2d7fbdea1afc51c7c6ad26",
 	"2":  "c81e728d9d4c2f636f067f89cc14862c",
+}
+
+func slam1To10ABillionTimes(t *testing.T, cache *Cache, counter *uint32, wg *sync.WaitGroup) {
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func(cache *Cache, counter *uint32, wg *sync.WaitGroup) {
+			var count uint32
+			for atomic.LoadUint32(counter) < 1000000000 {
+				cache.Get(strconv.Itoa(rand.Intn(9) + 1))
+				count = atomic.AddUint32(counter, 1)
+				t.Logf("%d\n", count)
+			}
+			wg.Done()
+		}(cache, counter, wg)
+	}
 }
