@@ -132,42 +132,33 @@ func (m *Cache) Update(key string) (err error) {
 	beingFetched := m.isBeingFetchedMap[key]
 	m.isBeingFetchedLock.RUnlock()
 
-	var value interface{}
-	if !beingFetched {
-		m.isBeingFetchedLock.Lock()
-		m.isBeingFetchedMap[key] = true
-		wg := m.isBeingFetchedWG[key]
-		if wg == nil {
-			wg = &sync.WaitGroup{}
-			m.isBeingFetchedWG[key] = wg
-		}
-		wg.Add(1)
-		m.isBeingFetchedLock.Unlock()
-		defer wg.Done()
-
-		// fetch value
-		value, err = m.fetch(key)
-		if err != nil {
-			return
-		}
-
-		m.itemsLock.Lock()
-		m.items[key] = value
-		m.itemsLock.Unlock()
-
-		m.isBeingFetchedLock.Lock()
-		m.isBeingFetchedMap[key] = false
-		m.isBeingFetchedLock.Unlock()
-	} else {
-		m.isBeingFetchedWG[key].Wait()
-		value, err = m.fetch(key)
-		if err != nil {
-			return
-		}
-		m.itemsLock.Lock()
-		m.items[key] = value
-		m.itemsLock.Unlock()
+	if beingFetched {
+		m.isBeingFetchedWG[key].Wait() // should read lock before grabbing the WG ?
 	}
+	m.isBeingFetchedLock.Lock()
+	m.isBeingFetchedMap[key] = true
+	wg := m.isBeingFetchedWG[key]
+	if wg == nil {
+		wg = &sync.WaitGroup{}
+		m.isBeingFetchedWG[key] = wg
+	}
+	wg.Add(1)
+	m.isBeingFetchedLock.Unlock()
+	defer wg.Done()
+
+	// fetch value
+	value, err := m.fetch(key)
+	if err != nil {
+		return
+	}
+
+	m.itemsLock.Lock()
+	m.items[key] = value
+	m.itemsLock.Unlock()
+
+	m.isBeingFetchedLock.Lock()
+	m.isBeingFetchedMap[key] = false
+	m.isBeingFetchedLock.Unlock()
 	return
 }
 
