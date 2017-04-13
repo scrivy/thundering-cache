@@ -98,7 +98,6 @@ func (m *Cache) Get(key string) (value interface{}, err error) {
 			m.itemsLock.RLock()
 			value = m.items[key]
 			m.itemsLock.RUnlock()
-			_, ok = value.(error)
 		}
 	}
 	return
@@ -127,27 +126,52 @@ func (m *Cache) Clear() {
 }
 
 // TODO needs to be rewritten to accomidate for updating an element when a get calls is already fetching it
-/*
-func (m *Cache) Update(key string) {
-	// get the updated value from the db before purging
-	value, err := m.fetch(key)
 
-	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			m.itemsLock.Lock()
-			delete(m.items, key)
-			m.itemsLock.Unlock()
-		default:
-			common.LogErr(m.name+":", err)
+func (m *Cache) Update(key string) (err error) {
+	m.isBeingFetchedLock.RLock()
+	beingFetched := m.isBeingFetchedMap[key]
+	m.isBeingFetchedLock.RUnlock()
+
+	var value interface{}
+	if !beingFetched {
+		m.isBeingFetchedLock.Lock()
+		m.isBeingFetchedMap[key] = true
+		wg := m.isBeingFetchedWG[key]
+		if wg == nil {
+			wg = &sync.WaitGroup{}
+			m.isBeingFetchedWG[key] = wg
 		}
+		wg.Add(1)
+		m.isBeingFetchedLock.Unlock()
+		defer wg.Done()
+
+		// fetch value
+		value, err = m.fetch(key)
+		if err != nil {
+			return
+		}
+
+		m.itemsLock.Lock()
+		m.items[key] = value
+		m.itemsLock.Unlock()
+
+		m.isBeingFetchedLock.Lock()
+		m.isBeingFetchedMap[key] = false
+		m.isBeingFetchedLock.Unlock()
 	} else {
+		m.isBeingFetchedWG[key].Wait()
+		value, err = m.fetch(key)
+		if err != nil {
+			return
+		}
 		m.itemsLock.Lock()
 		m.items[key] = value
 		m.itemsLock.Unlock()
 	}
+	return
 }
 
+/*
 func (m *Cache) PurgeAndInit() {
 	var items map[string]interface{}
 	var err error

@@ -86,25 +86,6 @@ func TestGet(t *testing.T) {
 	wg.Wait()
 }
 
-func TestClear(t *testing.T) {
-	// test clearing an initialized cache
-	cache, _ := New(getMd5Value, &preWarm)
-	eq := reflect.DeepEqual(
-		cache.GetAll(),
-		preWarmMap,
-	)
-	if !eq {
-		t.Fatalf("values: %v, want %v", cache.GetAll(), preWarmMap)
-	}
-	cache.Clear()
-	eq = reflect.DeepEqual(
-		cache.GetAll(),
-		map[string]interface{}{})
-	if !eq {
-		t.Fatalf("values: %v, expected empty map", cache.GetAll())
-	}
-}
-
 func TestGetAll(t *testing.T) {
 	// create a simple md5 cache
 	cache, _ := New(getMd5Value, nil)
@@ -142,6 +123,30 @@ func TestGetAll(t *testing.T) {
 	if cache.GetAll() != nil {
 		t.Fatalf("values: %v, wanted nil")
 	}
+}
+
+func TestClear(t *testing.T) {
+	// test clearing an initialized cache
+	cache, _ := New(getMd5Value, &preWarm)
+	eq := reflect.DeepEqual(
+		cache.GetAll(),
+		preWarmMap,
+	)
+	if !eq {
+		t.Fatalf("values: %v, want %v", cache.GetAll(), preWarmMap)
+	}
+	cache.Clear()
+	eq = reflect.DeepEqual(
+		cache.GetAll(),
+		map[string]interface{}{})
+	if !eq {
+		t.Fatalf("values: %v, expected empty map", cache.GetAll())
+	}
+}
+
+// TODO
+func TestUpdate(t *testing.T) {
+
 }
 
 func create1To10MD5Map() map[string]interface{} {
