@@ -125,15 +125,13 @@ func (m *Cache) Clear() {
 	return
 }
 
-// TODO needs to be rewritten to accomidate for updating an element when a get calls is already fetching it
-
 func (m *Cache) Update(key string) (err error) {
 	m.isBeingFetchedLock.RLock()
 	beingFetched := m.isBeingFetchedMap[key]
 	m.isBeingFetchedLock.RUnlock()
 
 	if beingFetched {
-		m.isBeingFetchedWG[key].Wait() // should read lock before grabbing the WG ?
+		m.isBeingFetchedWG[key].Wait()
 	}
 	m.isBeingFetchedLock.Lock()
 	m.isBeingFetchedMap[key] = true

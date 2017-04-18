@@ -83,6 +83,13 @@ func TestGet(t *testing.T) {
 			t.Fatalf("value: %s, want %s", value, v)
 		}
 	}
+	for i := 1; i < 1000; i++ {
+		key := strconv.Itoa(i)
+		shouldBe := computeMD5(key)
+		if value, _ := cache.Get(key); value.(string) != shouldBe {
+			t.Fatalf("key %v, value %v, want %v", key, value, shouldBe)
+		}
+	}
 	wg.Wait()
 }
 
@@ -167,21 +174,26 @@ func getMd5Value(key string) (value interface{}, err error) {
 	return computeMD5(key), nil
 }
 
-var preWarm = func() (map[string]interface{}, error) {
-	return create1To10MD5Map(), nil
-}
+var (
+	preWarm = func() (map[string]interface{}, error) {
+		return create1To10MD5Map(), nil
+	}
+	preWarmMap = map[string]interface{}{
+		"8":  "c9f0f895fb98ab9159f51fd0297e236d",
+		"10": "d3d9446802a44259755d38e6d163e820",
+		"1":  "c4ca4238a0b923820dcc509a6f75849b",
+		"3":  "eccbc87e4b5ce2fe28308fd9f2a7baf3",
+		"4":  "a87ff679a2f3e71d9181a67b7542122c",
+		"5":  "e4da3b7fbbce2345d7772b0674a318d5",
+		"6":  "1679091c5a880faf6fb5e6087eb1b2dc",
+		"7":  "8f14e45fceea167a5a36dedd4bea2543",
+		"9":  "45c48cce2e2d7fbdea1afc51c7c6ad26",
+		"2":  "c81e728d9d4c2f636f067f89cc14862c",
+	}
+)
 
-var preWarmMap = map[string]interface{}{
-	"8":  "c9f0f895fb98ab9159f51fd0297e236d",
-	"10": "d3d9446802a44259755d38e6d163e820",
-	"1":  "c4ca4238a0b923820dcc509a6f75849b",
-	"3":  "eccbc87e4b5ce2fe28308fd9f2a7baf3",
-	"4":  "a87ff679a2f3e71d9181a67b7542122c",
-	"5":  "e4da3b7fbbce2345d7772b0674a318d5",
-	"6":  "1679091c5a880faf6fb5e6087eb1b2dc",
-	"7":  "8f14e45fceea167a5a36dedd4bea2543",
-	"9":  "45c48cce2e2d7fbdea1afc51c7c6ad26",
-	"2":  "c81e728d9d4c2f636f067f89cc14862c",
+func checkKey(key string, value string) bool {
+	return computeMD5(key) == value
 }
 
 func slam1To10ALot(cache *Cache, wg *sync.WaitGroup) {
